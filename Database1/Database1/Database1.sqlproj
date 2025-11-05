@@ -64,7 +64,6 @@
   <ItemGroup>
     <Build Include="Tables\HoldTable.sql" />
     <None Include="PostDeployments\Script.PostDeploymentBacSi.sql" />
-    <None Include="PostDeployments\Script.PostDeploymentCaTruc.sql" />
     <None Include="PostDeployments\Script.PostDeploymentDieuDuong.sql" />
     <None Include="PostDeployments\Script.PostDeploymentDungCuYTe.sql" />
     <None Include="PostDeployments\Script.PostDeploymentDuocSi.sql" />
@@ -72,7 +71,11 @@
     <None Include="PostDeployments\Script.PostDeploymentLeTan.sql" />
     <PostDeploy Include="PostDeployments\Script.PostDeploymentNhanVien.sql" />
     <None Include="PostDeployments\Script.PostDeploymentPhongBenh.sql" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="PostDeployments\Script.PostDeploymentCaTruc.sql" />
+  </ItemGroup>
+  <ItemGroup>
     <None Include="PostDeployments\Script.PostDeploymentThuoc.sql" />
-    <Build Include="PhanLoaiNhanVien.sql" />
   </ItemGroup>
 </Project>

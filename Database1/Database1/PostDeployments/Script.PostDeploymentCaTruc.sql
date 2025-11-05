@@ -1,7 +1,14 @@
-﻿
-INSERT INTO CaTruc (MaCa, TenCa, GioBatDau, GioKetThuc)
+﻿USE BaiTapLonDB;
+GO
+
+-- Xóa dữ liệu cũ nếu có
+DELETE FROM CaTruc;
+GO
+
+-- Thêm dữ liệu ca trực mẫu
+INSERT INTO CaTruc (ThoiGianBatDau, ThoiGianKetThuc)
 VALUES
-('C001', N'Ca Sáng', '07:00', '15:00'),
-('C002', N'Ca Chiều', '15:00', '23:00'),
-('C003', N'Ca Đêm', '23:00', '07:00');
-	
+    ('2025-11-05T06:00:00', '2025-11-05T14:00:00'), -- Ca sáng
+    ('2025-11-05T14:00:00', '2025-11-05T22:00:00'), -- Ca chiều
+    ('2025-11-05T22:00:00', '2025-11-06T06:00:00'); -- Ca đêm
+GO
