@@ -1,11 +1,38 @@
 ﻿USE BaiTapLonDB;
 GO
 
--- Xóa nếu tồn tại
+-- Nếu view đã tồn tại thì xóa
+IF OBJECT_ID('v_HoSoBenhAn_Detail', 'V') IS NOT NULL
+    DROP VIEW v_HoSoBenhAn_Detail;
+GO
+
+-- Tạo VIEW hiển thị thông tin hồ sơ bệnh án chi tiết
+CREATE VIEW v_HoSoBenhAn_Detail
+AS
+SELECT 
+    hs.MaHSBA,
+    hs.MaBN,
+    bn.HoTen AS TenBenhNhan,
+    bs.MaNV AS MaBacSi,
+    nv.HoTen AS TenBacSi,
+    hs.ChanDoan,
+    hs.KetQuaXetNghiem,
+    hs.TienSuBenhLy,
+    hs.KetQuaKham,
+    hs.PhacDoDieuTri,
+    hs.NgayTaiKham
+FROM HoSoBenhAn hs
+JOIN BenhNhan bn ON hs.MaBN = bn.MaBN
+JOIN BacSi bs ON hs.MaNV = bs.MaNV
+JOIN NhanVien nv ON nv.MaNV = bs.MaNV;
+GO
+
+-- Xóa procedure cũ nếu có
 IF OBJECT_ID('sp_QuanLyHoSoBenhAn', 'P') IS NOT NULL
     DROP PROCEDURE sp_QuanLyHoSoBenhAn;
 GO
 
+-- Tạo lại procedure
 CREATE PROCEDURE sp_QuanLyHoSoBenhAn
     @Action NVARCHAR(10),          -- 'INSERT', 'UPDATE', hoặc 'VIEW'
     @MaHSBA INT = NULL,
@@ -57,7 +84,7 @@ BEGIN
         PRINT N'Cập nhật hồ sơ bệnh án thành công!';
     END
 
-    -- Xem hồ sơ bệnh án
+    -- Xem hồ sơ bệnh án qua VIEW
     ELSE IF @Action = 'VIEW'
     BEGIN
         IF @MaBN IS NULL
@@ -66,23 +93,10 @@ BEGIN
             RETURN;
         END
 
-        SELECT 
-            hs.MaHSBA,
-            bn.HoTen AS TenBenhNhan,
-            bs.MaNV AS MaBacSi,
-            nv.HoTen AS TenBacSi,
-            hs.ChanDoan,
-            hs.KetQuaXetNghiem,
-            hs.TienSuBenhLy,
-            hs.KetQuaKham,
-            hs.PhacDoDieuTri,
-            hs.NgayTaiKham
-        FROM HoSoBenhAn hs
-        JOIN BenhNhan bn ON hs.MaBN = bn.MaBN
-        JOIN BacSi bs ON hs.MaNV = bs.MaNV
-        JOIN NhanVien nv ON nv.MaNV = bs.MaNV
-        WHERE hs.MaBN = @MaBN
-        ORDER BY hs.MaHSBA DESC;
+        SELECT *
+        FROM v_HoSoBenhAn_Detail
+        WHERE MaBN = @MaBN
+        ORDER BY MaHSBA DESC;
     END
 
     ELSE

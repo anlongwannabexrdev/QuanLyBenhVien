@@ -1,10 +1,42 @@
 ﻿USE BaiTapLonDB;
 GO
 
+IF OBJECT_ID('v_DonThuoc_Detail', 'V') IS NOT NULL
+    DROP VIEW v_DonThuoc_Detail;
+GO
+
+-- Tạo VIEW hiển thị thông tin chi tiết các đơn thuốc
+CREATE VIEW v_DonThuoc_Detail
+AS
+SELECT 
+    dt.MaDT,
+    bn.HoTen AS TenBenhNhan,
+    bs.MaNV AS MaBacSi,
+    nv1.HoTen AS TenBacSi,
+    ds.MaNV AS MaDuocSi,
+    nv2.HoTen AS TenDuocSi,
+    dt.NgayKeDon,
+    t.MaThuoc,
+    t.TenThuoc,
+    ct.SoLuong,
+    t.GiaThuoc,
+    (ct.SoLuong * t.GiaThuoc) AS ThanhTien
+FROM DonThuoc dt
+JOIN BenhNhan bn ON dt.MaBN = bn.MaBN
+JOIN BacSi bs ON dt.MaNV_BacSi = bs.MaNV
+JOIN DuocSi ds ON dt.MaNV_DuocSi = ds.MaNV
+JOIN NhanVien nv1 ON bs.MaNV = nv1.MaNV
+JOIN NhanVien nv2 ON ds.MaNV = nv2.MaNV
+JOIN DonThuoc_ChiTiet ct ON dt.MaDT = ct.MaDT
+JOIN Thuoc t ON ct.MaThuoc = t.MaThuoc;
+GO
+
+
 IF OBJECT_ID('sp_QuanLyDonThuoc', 'P') IS NOT NULL
     DROP PROCEDURE sp_QuanLyDonThuoc;
 GO
 
+-- Tạo lại procedure có dùng VIEW
 CREATE PROCEDURE sp_QuanLyDonThuoc
     @Action NVARCHAR(10),              -- 'INSERT', 'UPDATE', 'DELETE', 'VIEW', 'SEARCH'
     @MaDT INT = NULL,
@@ -13,13 +45,13 @@ CREATE PROCEDURE sp_QuanLyDonThuoc
     @MaBN INT = NULL,
     @NgayKeDon DATE = NULL,
     @MaThuoc INT = NULL,
-    @SoLuong INT = NULL
+    @SoLuong INT = NULL,
+    @Keyword NVARCHAR(100) = NULL      -- Dùng cho SEARCH
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- 1️. Thêm đơn thuốc mới
-    
+    -- 1. Thêm đơn thuốc mới
     IF @Action = 'INSERT'
     BEGIN
         IF @MaNV_BacSi IS NULL OR @MaNV_DuocSi IS NULL OR @MaBN IS NULL
@@ -34,7 +66,6 @@ BEGIN
         DECLARE @NewID INT = SCOPE_IDENTITY();
         PRINT N'Tạo đơn thuốc mới thành công! Mã đơn thuốc: ' + CAST(@NewID AS NVARCHAR);
 
-        -- Nếu có thuốc kèm theo thì thêm luôn vào chi tiết
         IF @MaThuoc IS NOT NULL AND @SoLuong IS NOT NULL
         BEGIN
             INSERT INTO DonThuoc_ChiTiet (MaDT, MaThuoc, SoLuong)
@@ -44,9 +75,8 @@ BEGIN
         RETURN;
     END
 
-    -- 2️. Cập nhật số lượng thuốc trong đơn
-
-    IF @Action = 'UPDATE'
+    -- 2. Cập nhật số lượng thuốc trong đơn
+    ELSE IF @Action = 'UPDATE'
     BEGIN
         IF @MaDT IS NULL OR @MaThuoc IS NULL
         BEGIN
@@ -62,9 +92,8 @@ BEGIN
         RETURN;
     END
 
-    -- 3️. Xóa đơn thuốc hoặc chi tiết
-    
-    IF @Action = 'DELETE'
+    -- 3. Xóa đơn thuốc hoặc chi tiết
+    ELSE IF @Action = 'DELETE'
     BEGIN
         IF @MaDT IS NULL
         BEGIN
@@ -72,63 +101,34 @@ BEGIN
             RETURN;
         END
 
-        -- Xóa chi tiết trước
         DELETE FROM DonThuoc_ChiTiet WHERE MaDT = @MaDT;
-
-        -- Rồi xóa đơn chính
         DELETE FROM DonThuoc WHERE MaDT = @MaDT;
 
         PRINT N'Đã xóa đơn thuốc và toàn bộ chi tiết!';
         RETURN;
     END
 
-    -- 4️. Xem toàn bộ đơn thuốc
-
-    IF @Action = 'VIEW'
+    -- 4. Xem toàn bộ đơn thuốc (dùng VIEW)
+    ELSE IF @Action = 'VIEW'
     BEGIN
-        SELECT 
-            dt.MaDT,
-            bn.HoTen AS TenBenhNhan,
-            bs.MaNV AS MaBacSi,
-            nv1.HoTen AS TenBacSi,
-            ds.MaNV AS MaDuocSi,
-            nv2.HoTen AS TenDuocSi,
-            dt.NgayKeDon,
-            t.TenThuoc,
-            ct.SoLuong,
-            t.GiaThuoc,
-            (ct.SoLuong * t.GiaThuoc) AS ThanhTien
-        FROM DonThuoc dt
-        JOIN BenhNhan bn ON dt.MaBN = bn.MaBN
-        JOIN BacSi bs ON dt.MaNV_BacSi = bs.MaNV
-        JOIN DuocSi ds ON dt.MaNV_DuocSi = ds.MaNV
-        JOIN NhanVien nv1 ON bs.MaNV = nv1.MaNV
-        JOIN NhanVien nv2 ON ds.MaNV = nv2.MaNV
-        JOIN DonThuoc_ChiTiet ct ON dt.MaDT = ct.MaDT
-        JOIN Thuoc t ON ct.MaThuoc = t.MaThuoc
-        ORDER BY dt.NgayKeDon DESC;
+        SELECT * FROM v_DonThuoc_Detail
+        ORDER BY NgayKeDon DESC;
         RETURN;
     END
 
-    -- 5️. Tìm kiếm theo tên bệnh nhân hoặc bác sĩ
-
-    IF @Action = 'SEARCH'
+    -- 5. Tìm kiếm theo tên bệnh nhân hoặc bác sĩ (dùng VIEW)
+    ELSE IF @Action = 'SEARCH'
     BEGIN
-        SELECT 
-            dt.MaDT, bn.HoTen AS TenBenhNhan, nv1.HoTen AS TenBacSi, nv2.HoTen AS TenDuocSi,
-            dt.NgayKeDon
-        FROM DonThuoc dt
-        JOIN BenhNhan bn ON dt.MaBN = bn.MaBN
-        JOIN BacSi bs ON dt.MaNV_BacSi = bs.MaNV
-        JOIN DuocSi ds ON dt.MaNV_DuocSi = ds.MaNV
-        JOIN NhanVien nv1 ON bs.MaNV = nv1.MaNV
-        JOIN NhanVien nv2 ON ds.MaNV = nv2.MaNV
-        WHERE bn.HoTen LIKE N'%' + ISNULL(@TenThuoc, '') + '%'
-           OR nv1.HoTen LIKE N'%' + ISNULL(@TenThuoc, '') + '%'
-        ORDER BY dt.NgayKeDon DESC;
+        SELECT *
+        FROM v_DonThuoc_Detail
+        WHERE TenBenhNhan LIKE N'%' + ISNULL(@Keyword, '') + '%'
+           OR TenBacSi LIKE N'%' + ISNULL(@Keyword, '') + '%'
+        ORDER BY NgayKeDon DESC;
         RETURN;
     END
 
-    RAISERROR(N'Hành động không hợp lệ! Hãy dùng INSERT, UPDATE, DELETE, VIEW, hoặc SEARCH.', 16, 1);
+    -- Nếu không khớp hành động nào
+    ELSE
+        RAISERROR(N'Hành động không hợp lệ! Hãy dùng INSERT, UPDATE, DELETE, VIEW, hoặc SEARCH.', 16, 1);
 END;
 GO

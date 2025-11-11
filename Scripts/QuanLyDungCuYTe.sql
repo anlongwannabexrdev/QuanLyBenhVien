@@ -1,10 +1,29 @@
 ﻿USE BaiTapLonDB;
 GO
 
+IF OBJECT_ID('v_DungCuYTe_Detail', 'V') IS NOT NULL
+    DROP VIEW v_DungCuYTe_Detail;
+GO
+
+-- Tạo view hiển thị thông tin dụng cụ y tế
+CREATE VIEW v_DungCuYTe_Detail
+AS
+SELECT 
+    MaDC,
+    TenDC,
+    NhaSanXuat,
+    GiaDC,
+    SoLo,
+    LoaiDC
+FROM DungCuYTe;
+GO
+
+
 IF OBJECT_ID('sp_QuanLyDungCuYTe', 'P') IS NOT NULL
     DROP PROCEDURE sp_QuanLyDungCuYTe;
 GO
 
+-- Tạo lại procedure có sử dụng view
 CREATE PROCEDURE sp_QuanLyDungCuYTe
     @Action NVARCHAR(10),              -- 'INSERT', 'UPDATE', 'DELETE', 'VIEW', 'SEARCH'
     @MaDC INT = NULL,
@@ -18,7 +37,7 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- 1️. Thêm dụng cụ y tế
+    -- 1. Thêm dụng cụ y tế
     IF @Action = 'INSERT'
     BEGIN
         IF @TenDC IS NULL OR @LoaiDC IS NULL
@@ -37,12 +56,12 @@ BEGIN
         VALUES (@TenDC, @NhaSanXuat, @GiaDC, @SoLo, @LoaiDC);
 
         DECLARE @NewMaDC INT = SCOPE_IDENTITY();
-        PRINT N'✅ Đã thêm dụng cụ y tế mới, mã dụng cụ: ' + CAST(@NewMaDC AS NVARCHAR);
+        PRINT N'Đã thêm dụng cụ y tế mới, mã dụng cụ: ' + CAST(@NewMaDC AS NVARCHAR);
         RETURN;
     END
 
-    -- 2️. Cập nhật thông tin dụng cụ
-    IF @Action = 'UPDATE'
+    -- 2. Cập nhật dụng cụ y tế
+    ELSE IF @Action = 'UPDATE'
     BEGIN
         IF @MaDC IS NULL
         BEGIN
@@ -64,12 +83,12 @@ BEGIN
             LoaiDC = ISNULL(@LoaiDC, LoaiDC)
         WHERE MaDC = @MaDC;
 
-        PRINT N'✅ Cập nhật thông tin dụng cụ thành công!';
+        PRINT N'Cập nhật thông tin dụng cụ thành công!';
         RETURN;
     END
 
-    -- 3️. Xóa dụng cụ y tế
-    IF @Action = 'DELETE'
+    -- 3. Xóa dụng cụ y tế
+    ELSE IF @Action = 'DELETE'
     BEGIN
         IF @MaDC IS NULL
         BEGIN
@@ -85,27 +104,21 @@ BEGIN
 
         DELETE FROM DungCuYTe WHERE MaDC = @MaDC;
 
-        PRINT N'🗑️ Đã xóa dụng cụ y tế thành công!';
+        PRINT N'Đã xóa dụng cụ y tế thành công!';
         RETURN;
     END
 
-    -- 4️. Xem toàn bộ danh sách dụng cụ
-    IF @Action = 'VIEW'
+    -- 4. Xem toàn bộ danh sách dụng cụ (dùng VIEW)
+    ELSE IF @Action = 'VIEW'
     BEGIN
-        SELECT 
-            MaDC,
-            TenDC,
-            NhaSanXuat,
-            GiaDC,
-            SoLo,
-            LoaiDC
-        FROM DungCuYTe
+        SELECT * 
+        FROM v_DungCuYTe_Detail
         ORDER BY TenDC;
         RETURN;
     END
 
-    -- 5️. Tìm kiếm dụng cụ theo tên / loại / nhà sản xuất
-    IF @Action = 'SEARCH'
+    -- 5. Tìm kiếm dụng cụ theo tên / loại / nhà sản xuất (dùng VIEW)
+    ELSE IF @Action = 'SEARCH'
     BEGIN
         IF @TuKhoa IS NULL
         BEGIN
@@ -113,14 +126,8 @@ BEGIN
             RETURN;
         END
 
-        SELECT 
-            MaDC,
-            TenDC,
-            NhaSanXuat,
-            GiaDC,
-            SoLo,
-            LoaiDC
-        FROM DungCuYTe
+        SELECT * 
+        FROM v_DungCuYTe_Detail
         WHERE TenDC LIKE N'%' + @TuKhoa + N'%'
            OR LoaiDC LIKE N'%' + @TuKhoa + N'%'
            OR NhaSanXuat LIKE N'%' + @TuKhoa + N'%'
@@ -128,7 +135,7 @@ BEGIN
         RETURN;
     END
 
-    -- ⚠️ Nếu không khớp hành động nào
-    RAISERROR(N'Hành động không hợp lệ! Hãy dùng INSERT, UPDATE, DELETE, VIEW hoặc SEARCH.', 16, 1);
+    ELSE
+        RAISERROR(N'Hành động không hợp lệ! Hãy dùng INSERT, UPDATE, DELETE, VIEW hoặc SEARCH.', 16, 1);
 END;
 GO

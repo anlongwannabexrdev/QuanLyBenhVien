@@ -1,10 +1,34 @@
 ﻿USE BaiTapLonDB;
 GO
 
+IF OBJECT_ID('v_Thuoc_Detail', 'V') IS NOT NULL
+    DROP VIEW v_Thuoc_Detail;
+GO
+
+-- Tạo view hiển thị danh sách thuốc kèm trạng thái
+CREATE VIEW v_Thuoc_Detail
+AS
+SELECT 
+    MaThuoc,
+    TenThuoc,
+    HanSuDung,
+    NhaSanXuat,
+    GiaThuoc,
+    SoLo,
+    CASE 
+        WHEN HanSuDung < GETDATE() THEN N'Hết hạn'
+        WHEN DATEDIFF(DAY, GETDATE(), HanSuDung) <= 30 THEN N'Sắp hết hạn'
+        ELSE N'Còn hạn'
+    END AS TrangThai
+FROM Thuoc;
+GO
+
+
 IF OBJECT_ID('sp_QuanLyThuoc', 'P') IS NOT NULL
     DROP PROCEDURE sp_QuanLyThuoc;
 GO
 
+-- Tạo procedure quản lý thuốc sử dụng view
 CREATE PROCEDURE sp_QuanLyThuoc
     @Action NVARCHAR(10),              -- 'INSERT', 'UPDATE', 'DELETE', 'VIEW', 'SEARCH'
     @MaThuoc INT = NULL,
@@ -18,7 +42,6 @@ BEGIN
     SET NOCOUNT ON;
 
     -- 1️. Thêm mới thuốc
-
     IF @Action = 'INSERT'
     BEGIN
         IF @TenThuoc IS NULL OR @HanSuDung IS NULL OR @GiaThuoc IS NULL
@@ -35,7 +58,6 @@ BEGIN
     END
 
     -- 2️. Cập nhật thông tin thuốc
-
     IF @Action = 'UPDATE'
     BEGIN
         IF @MaThuoc IS NULL
@@ -56,8 +78,7 @@ BEGIN
         RETURN;
     END
 
-    -- 3️. Xóa thuốc khỏi danh mục
-
+    -- 3️. Xóa thuốc
     IF @Action = 'DELETE'
     BEGIN
         IF @MaThuoc IS NULL
@@ -71,33 +92,26 @@ BEGIN
         RETURN;
     END
 
-    -- 4️. Xem danh sách thuốc
-
+    -- 4️. Xem danh sách thuốc (dùng view)
     IF @Action = 'VIEW'
     BEGIN
-        SELECT 
-            MaThuoc, TenThuoc, HanSuDung, NhaSanXuat, GiaThuoc, SoLo,
-            CASE 
-                WHEN HanSuDung < GETDATE() THEN N'Hết hạn'
-                WHEN DATEDIFF(DAY, GETDATE(), HanSuDung) <= 30 THEN N'Sắp hết hạn'
-                ELSE N'Còn hạn'
-            END AS TrangThai
-        FROM Thuoc
+        SELECT * FROM v_Thuoc_Detail
         ORDER BY HanSuDung ASC;
         RETURN;
     END
 
-    -- 5️. Tìm kiếm thuốc theo tên / số lô / nhà sản xuất
- 
+    -- 5️. Tìm kiếm thuốc theo tên / số lô / nhà sản xuất (dùng view)
     IF @Action = 'SEARCH'
     BEGIN
-        SELECT * FROM Thuoc
-        WHERE (@TenThuoc IS NULL OR TenThuoc LIKE '%' + @TenThuoc + '%')
-           OR (@SoLo IS NULL OR SoLo LIKE '%' + @SoLo + '%')
-           OR (@NhaSanXuat IS NULL OR NhaSanXuat LIKE '%' + @NhaSanXuat + '%');
+        SELECT * 
+        FROM v_Thuoc_Detail
+        WHERE (@TenThuoc IS NULL OR TenThuoc LIKE N'%' + @TenThuoc + N'%')
+           OR (@SoLo IS NULL OR SoLo LIKE N'%' + @SoLo + N'%')
+           OR (@NhaSanXuat IS NULL OR NhaSanXuat LIKE N'%' + @NhaSanXuat + N'%')
+        ORDER BY HanSuDung ASC;
         RETURN;
     END
 
-    RAISERROR(N'Hành động không hợp lệ! Chỉ được dùng INSERT, UPDATE, DELETE, VIEW, hoặc SEARCH.', 16, 1);
+    RAISERROR(N'Hành động không hợp lệ! Chỉ dùng INSERT, UPDATE, DELETE, VIEW hoặc SEARCH.', 16, 1);
 END;
 GO

@@ -93,3 +93,4 @@ SELECT
 FROM NhanVien
 WHERE ChucVu = N'Lễ tân';
 GO
+
