@@ -1,0 +1,6 @@
+USE BaiTapLonDB;
+GO
+
+SELECT * FROM Thuoc
+WHERE HanSuDung >= '2027-01-01';
+GO
